@@ -1,0 +1,63 @@
+name: Package-RPM
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'snapshot*'
+  workflow_dispatch: {}
+env:
+  VERSION: 2.1.9
+permissions:
+  contents: write
+jobs:
+  package-rpm:
+    name: Package RPM
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora-toolbox:${{ matrix.toolbox-tag }}
+
+    strategy:
+      matrix:
+        toolbox-tag: [37]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          dnf install -y -q fedpkg \
+          && dnf build-dep -y -q zfs-kmod.spec
+      - name: Download source
+        run: curl -Lfs -O https://github.com/openzfs/zfs/releases/download/zfs-${VERSION}/zfs-${VERSION}.tar.gz
+      - name: Build
+        run: fedpkg --release f${{ matrix.toolbox-tag }} local
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: rpm-f${{ matrix.toolbox-tag }}
+          path: |
+            *.rpm
+            */*.rpm
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs:
+      - package-rpm
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+      - name: Checksums
+        run: sha256sum rpm-*/*.rpm rpm-*/*/*.rpm > sha256sums
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            Automated release. Please see the project README.md for more information.
+            [Build logs.](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          prerelease: True
+          files: |
+            rpm-*/*.rpm
+            rpm-*/*/*.rpm
+            sha256sums
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

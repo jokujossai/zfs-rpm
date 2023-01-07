@@ -1,0 +1,4 @@
+/zfs-*.tar.gz
+/zfs-kmod-*/*
+*.rpm
+.build-*.log
