@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        toolbox-tag: [37]
+        toolbox-tag: [36, 37]
 
     steps:
       - name: Checkout code
